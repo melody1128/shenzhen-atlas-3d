@@ -1,0 +1,40 @@
+{
+  "name": "shenzhen-atlas-3d",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "深圳城市图鉴 3D：真实地图、行政区划与城市探索",
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0",
+    "build": "node scripts/prepare-static.mjs && next build",
+    "start": "next start -H 0.0.0.0",
+    "local:start": "node scripts/start.mjs",
+    "local:stop": "node scripts/stop.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "lucide-react": "1.75.0",
+    "next": "16.4.6",
+    "qrcode": "1.5.4",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zustand": "5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/qrcode": "1.5.6",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "agent-browser": "0.43.0",
+    "eslint": "9.39.4",
+    "eslint-config-next": "16.4.6",
+    "typescript": "5.9.3",
+    "vitest": "5.1.1"
+  },
+  "engines": {
+    "node": ">=20.9.0"
+  }
+}
