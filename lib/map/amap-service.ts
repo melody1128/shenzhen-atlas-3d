@@ -114,7 +114,8 @@ export class ShenzhenMapService {
   async loadDistrictBoundaries(onSelect: (districtId: string) => void): Promise<{ loaded: number; unavailable: string[] }> {
     const unavailable: string[] = [];
     let loaded = 0;
-    await Promise.all(Array.from(DISTRICT_BY_ID.values()).map(async (district) => {
+    const districts = [...DISTRICT_BY_ID.values()];
+    const loadBoundary = async (district: District) => {
       try {
         const result = await this.queryDistrict(district);
         if (result?.center) this.districtCenters.set(district.id, [result.center.getLng(), result.center.getLat()]);
@@ -143,7 +144,13 @@ export class ShenzhenMapService {
       } catch {
         unavailable.push(district.name);
       }
-    }));
+    };
+
+    // Limit simultaneous requests so district queries leave capacity for POI lookups.
+    const batchSize = 3;
+    for (let start = 0; start < districts.length; start += batchSize) {
+      await Promise.all(districts.slice(start, start + batchSize).map(loadBoundary));
+    }
     return { loaded, unavailable };
   }
 
