@@ -97,7 +97,9 @@ export class ShenzhenMapService {
   private queryDistrict(district: District): Promise<AMap.District | null> {
     return new Promise((resolve, reject) => {
       const search = new AMap.DistrictSearch({ level: "district", extensions: "all", subdistrict: 0 });
+      const timer = window.setTimeout(() => reject(new Error(`${district.name}边界查询超时`)), 20_000);
       search.search(district.adcode ?? district.name, (status, result) => {
+        window.clearTimeout(timer);
         if (status === "complete") {
           const match = result.districtList?.find((entry) => district.adcode
             ? String(entry.adcode) === district.adcode
