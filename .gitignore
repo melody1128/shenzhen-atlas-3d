@@ -13,3 +13,5 @@ test-results/
 public/atlas-config.json
 .workbuddy/
 *.tsbuildinfo
+.wrangler/
+.dev.vars*
