@@ -25,7 +25,7 @@
 ## 快速开始
 
 ```bash
-npm install
+npm ci
 npm run build        # 生成静态站点到 out/（自动生成地图配置）
 npm run local:start  # 本地静态服务，输出电脑/手机地址与二维码
 ```
@@ -38,33 +38,18 @@ npm run local:start  # 本地静态服务，输出电脑/手机地址与二维�
 2. 创建应用 → 添加 Key，类型选择 **Web端(JS API)**，同时取得配套安全密钥。
 3. 配置环境变量：
    - **本地**：`cp .env.example .env.local`，填入 `NEXT_PUBLIC_AMAP_KEY` 与 `AMAP_SECURITY_CODE`，重新 `npm run build`。
-   - **Cloudflare Pages**：在项目 Settings → Environment variables 中配置同名变量，重新部署。
+   - **Cloudflare Pages**：将 `NEXT_PUBLIC_AMAP_KEY` 配置为项目环境变量，将 `AMAP_SECURITY_CODE` 配置为加密 Secret，重新部署。
 4. 重新构建后地图即加载真实深圳底图、建筑楼块与全部 POI 图层。
 
-安全说明：默认使用高德官方支持的前端安全密钥配置方式（适合个人小流量站点）。如需密钥完全不进前端，可部署 Cloudflare Worker 代理并设置 `AMAP_SERVICE_HOST`（免费额度内）。密钥均通过构建注入，不写入代码仓库。
+浏览器使用高德 Web Key 加载 JS API。本地服务和 Cloudflare Pages Function 通过同源 `/_AMapService/` 转发地图服务请求，并在服务端附加安全密钥。客户端配置文件只包含 Web Key 和可选代理地址。
 
-## 部署到 Cloudflare Pages（公网 HTTPS，0 元/月）
+## 部署到 Cloudflare Pages（Git 自动构建）
 
-方式一：Git 连接（推荐，自动构建）
-
-1. 把本项目推送到 GitHub 仓库。
-2. Cloudflare Dashboard → Workers & Pages → Create → Pages → 连接该仓库。
-3. 构建配置：
-   - Framework preset: `Next.js (Static HTML Export)`
-   - Build command: `npm run build`
-   - Build output directory: `out`
-4. 在 Settings → Environment variables 配置 `NEXT_PUBLIC_AMAP_KEY`、`AMAP_SECURITY_CODE`。
-5. 部署完成后获得 `https://<项目名>.pages.dev` 公网地址。
-
-方式二：Direct Upload（无需 Git）
-
-```bash
-npm run build
-npx wrangler pages deploy out --project-name=shenzhen-atlas-3d
-# 首次会要求 wrangler login 授权 Cloudflare 账号
-```
-
-> 本机已验证 `wrangler 4.164.0` 可用，但部署需要你本人登录 Cloudflare 授权，因此未代替执行，也绝不伪造部署结果。
+1. 将项目推送到 GitHub。
+2. 在 Cloudflare Workers & Pages 创建 Pages 项目，选择导入现有 Git 仓库。
+3. 生产分支选择 `main`，框架选择 `Next.js (Static HTML Export)`，构建命令填 `npm run build`，产物目录填 `out`。构建变量 `NODE_VERSION` 设为 `24.16.0`。
+4. 将 `NEXT_PUBLIC_AMAP_KEY` 添加为生产环境变量，用于构建和运行时。将配套的 `AMAP_SECURITY_CODE` 添加为生产环境的 **Secret**。保存后部署。
+5. 从项目部署详情打开分配的 `pages.dev` 地址，检查底图、区级边界和地点搜索。
 
 ## 常用命令
 

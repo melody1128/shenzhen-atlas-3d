@@ -1,6 +1,5 @@
 interface AtlasRuntimeConfig {
   amapKey: string;
-  securityJsCode: string;
   serviceHost: string;
 }
 
@@ -14,12 +13,6 @@ async function fetchRuntimeConfig(): Promise<AtlasRuntimeConfig> {
   return config;
 }
 
-/**
- * 异步加载高德官方在线脚本。
- * 安全密钥两种方式（官方均支持）：
- * 1. serviceHost —— 指向 Cloudflare Worker / 其他代理，密钥不进前端；
- * 2. securityJsCode 前端配置 —— 高德 JS API 2.0 官方文档方式，适合个人小流量站点。
- */
 export function loadAMap(): Promise<typeof AMap> {
   if (typeof window === "undefined") return Promise.reject(new Error("地图只能在浏览器中初始化"));
   if (window.AMap) return Promise.resolve(window.AMap);
@@ -32,9 +25,9 @@ export function loadAMap(): Promise<typeof AMap> {
     }, 20_000);
 
     fetchRuntimeConfig().then((config) => {
-      window._AMapSecurityConfig = config.serviceHost
-        ? { serviceHost: config.serviceHost }
-        : { securityJsCode: config.securityJsCode };
+      window._AMapSecurityConfig = {
+        serviceHost: config.serviceHost || new URL("/_AMapService", window.location.origin).href,
+      };
 
       window.__shenzhenAtlasAMapLoaded = () => {
         if (window.AMap) {

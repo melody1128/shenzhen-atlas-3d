@@ -9,3 +9,7 @@ out/
 coverage/
 playwright-report/
 test-results/
+
+public/atlas-config.json
+.workbuddy/
+*.tsbuildinfo

@@ -30,6 +30,7 @@ export class ShenzhenMapService {
   private readonly layerRequests = new Map<LayerId, number>();
   private readonly onPlaceSelect: (place: AtlasPlace) => void;
   private selectionMarker: AMap.Marker | null = null;
+  private is3D = true;
   private satellite: AMap.TileLayer.Satellite | null = null;
 
   private constructor(map: AMap.Map, onPlaceSelect: (place: AtlasPlace) => void) {
@@ -63,8 +64,10 @@ export class ShenzhenMapService {
   }
 
   setViewMode(mode: "2D" | "3D"): void {
-    this.map.setViewMode(mode);
-    this.map.setPitch(mode === "3D" ? 48 : 0, false, 450);
+    this.is3D = mode === "3D";
+    this.map.setStatus({ pitchEnable: this.is3D, rotateEnable: this.is3D });
+    this.map.setPitch(this.is3D ? 48 : 0, false, 450);
+    if (!this.is3D) this.resetNorth();
   }
 
   setBaseMode(mode: BaseMapMode, theme: "dark" | "light"): void {
@@ -88,15 +91,19 @@ export class ShenzhenMapService {
   resetView(): void {
     this.map.setZoomAndCenter(10.2, SHENZHEN_CENTER, false, 800);
     this.map.setRotation(0, false, 500);
-    this.map.setPitch(46, false, 600);
+    this.map.setPitch(this.is3D ? 46 : 0, false, 600);
   }
 
   private queryDistrict(district: District): Promise<AMap.District | null> {
     return new Promise((resolve, reject) => {
       const search = new AMap.DistrictSearch({ level: "district", extensions: "all", subdistrict: 0 });
       search.search(district.adcode ?? district.name, (status, result) => {
-        if (status === "complete" && result.districts?.[0]) resolve(result.districts[0]);
-        else if (status === "no_data") resolve(null);
+        if (status === "complete") {
+          const match = result.districtList?.find((entry) => district.adcode
+            ? String(entry.adcode) === district.adcode
+            : entry.name === district.name);
+          resolve(match ?? null);
+        } else if (status === "no_data") resolve(null);
         else reject(new Error(`${district.name}边界查询失败：${result.info ?? status}`));
       });
     });
@@ -161,7 +168,7 @@ export class ShenzhenMapService {
     const polygons = this.districtPolygons.get(districtId);
     if (polygons?.length) {
       this.map.setFitView(polygons, false, [72, 72, 72, 72], 13);
-      this.map.setPitch(48, false, 650);
+      if (this.is3D) this.map.setPitch(48, false, 650);
       return true;
     }
     const center = this.districtCenters.get(districtId);
@@ -240,7 +247,7 @@ export class ShenzhenMapService {
     });
     this.map.add(this.selectionMarker);
     this.map.setZoomAndCenter(15.2, [place.location.lng, place.location.lat], false, 750);
-    this.map.setPitch(50, false, 650);
+    if (this.is3D) this.map.setPitch(50, false, 650);
   }
 
   clearLayer(layerId: LayerId): void {

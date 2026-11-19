@@ -2,6 +2,8 @@ import { spawnSync } from "node:child_process";
 import { createReadStream, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { networkInterfaces } from "node:os";
+import { Readable } from "node:stream";
+import { proxyAMap } from "../lib/map/amap-proxy.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import QRCode from "qrcode";
@@ -115,18 +117,31 @@ writeFileSync(path.join(localDir, "access.json"), JSON.stringify({ localUrl: `ht
 console.log(`\n服务监听：0.0.0.0:${port}（仅限可信局域网，公网部署请见 README 的 Cloudflare Pages 章节）`);
 console.log("停止方式：npm run local:stop 或 Ctrl+C\n");
 
-const server = createServer((request, response) => {
+const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url ?? "/", `http://localhost:${port}`);
+    if (url.pathname.startsWith("/_AMapService/")) {
+      const result = await proxyAMap(new Request(url, {
+        method: request.method,
+        headers: request.headers,
+      }), {
+        key: env.NEXT_PUBLIC_AMAP_KEY,
+        securityCode: env.AMAP_SECURITY_CODE,
+      });
+      response.writeHead(result.status, Object.fromEntries(result.headers));
+      if (result.body) Readable.fromWeb(result.body).on("error", () => response.destroy()).pipe(response);
+      else response.end();
+      return;
+    }
     let pathname = decodeURIComponent(url.pathname);
     if (pathname.endsWith("/")) pathname += "index.html";
     const candidate = path.normalize(path.join(outDir, pathname));
-    if (candidate.startsWith(outDir) && existsSync(candidate) && statSync(candidate).isFile()) {
+    if (candidate.startsWith(outDir + path.sep) && existsSync(candidate) && statSync(candidate).isFile()) {
       serveFile(candidate, response);
       return;
     }
     const withHtml = `${candidate}.html`;
-    if (candidate.startsWith(outDir) && existsSync(withHtml) && statSync(withHtml).isFile()) {
+    if (candidate.startsWith(outDir + path.sep) && existsSync(withHtml) && statSync(withHtml).isFile()) {
       serveFile(withHtml, response);
       return;
     }

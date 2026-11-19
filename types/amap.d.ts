@@ -31,7 +31,7 @@ declare namespace AMap {
     setZoom(zoom: number, immediately?: boolean, duration?: number): void;
     setPitch(pitch: number, immediately?: boolean, duration?: number): void;
     setRotation(rotation: number, immediately?: boolean, duration?: number): void;
-    setViewMode(mode: "2D" | "3D"): void;
+    setStatus(status: { pitchEnable: boolean; rotateEnable: boolean }): void;
     setMapStyle(style: string): void;
     setFeatures(features: string[]): void;
     setFitView(overlays?: Polygon[], immediately?: boolean, avoid?: number[], maxZoom?: number): void;
@@ -50,7 +50,7 @@ declare namespace AMap {
 
   interface DistrictSearchResult {
     info?: string;
-    districts?: District[];
+    districtList?: District[];
   }
 
   class DistrictSearch {
