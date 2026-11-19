@@ -81,7 +81,8 @@ export function DetailPanel({ selection, expanded, onToggleExpanded, onClose, on
   const record = records[details.id];
   const isEstate = details.category === "住宅小区";
   const sale = isEstate ? latestEstateSale(details.name, details.districtName) : undefined;
-  const profile = knownPlaceProfile(details.name, details.districtName, details.category);
+  const profile = knownPlaceProfile(details.name, details.districtName, details.category,
+    details.place?.streetName ?? details.curated?.requiredStreet);
   const mappedAddress = details.place?.address;
   const location = ["街道", "社区"].includes(details.category)
     ? `深圳市${details.districtName}${details.street?.name ?? ""}${details.kind === "community" ? details.name : ""}`

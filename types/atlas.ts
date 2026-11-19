@@ -81,6 +81,7 @@ export interface CuratedPlace {
   category: PlaceCategory;
   districtId: string;
   areaName?: string;
+  requiredStreet?: string;
 }
 
 /** 业务组件只使用该统一模型，不直接依赖高德原始 POI 结构。 */

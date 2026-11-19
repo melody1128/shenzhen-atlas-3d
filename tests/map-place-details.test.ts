@@ -24,7 +24,8 @@ describe("place-level price references", () => {
   });
 
   it("keeps village references separate from estate transactions", () => {
-    expect(knownPlaceProfile("麻布新村", "宝安区", "城中村")?.villagePrice?.sqm).toBe(14_847);
+    expect(knownPlaceProfile("麻布新村", "宝安区", "城中村", "西乡街道")?.villagePrice?.sqm).toBe(14_847);
+    expect(knownPlaceProfile("麻布新村", "宝安区", "城中村", "石岩街道")).toBeUndefined();
     expect(latestEstateSale("麻布新村", "宝安区")).toBeUndefined();
   });
 });

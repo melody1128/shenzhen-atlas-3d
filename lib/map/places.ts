@@ -31,6 +31,7 @@ export function classifyPlace(poi: Pick<AMap.Poi, "name" | "type" | "typecode">)
   if (code === "150500" || /;地铁站;地铁站/.test(type)) return "地铁站";
   if (code === "150501" || /;地铁站;出入口/.test(type)) return null;
   if (/^(150200|150203)$/.test(code) || /火车站;火车站/.test(type)) return "铁路车站";
+  if (name === "麻布邨") return "城中村";
   if ((code === "190108" || code === "190109" || /村庄级地名|村组级地名/.test(type) ||
     /(?:新[一二三四五六七八九十1-9]?村|老村|旧村|围村)$/.test(name)) && /村/.test(name)) return "城中村";
   if (!/社区$|公寓(?:[A-Z]座)?$|[路街道巷]\d+(?:-\d+)?号/i.test(name) && (codes.includes("120302") || /住宅小区/.test(type))) return "住宅小区";

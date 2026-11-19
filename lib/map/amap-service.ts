@@ -353,11 +353,20 @@ export class ShenzhenMapService {
     const district = DISTRICT_BY_ID.get(curated.districtId);
     const aliases = [curated.name, ...curated.aliases];
     const districtMatches = (place: AtlasPlace) => !district || !place.districtName || place.districtName === district.name;
-    const results = await this.searchPlaces(curated.name, curated.category);
-    const exact = results.find((place) => districtMatches(place) && aliases.includes(place.name));
-    if (!exact) return null;
-    const resolved = await this.describePlace(exact);
-    return districtMatches(resolved) ? resolved : null;
+    const keyword = curated.requiredStreet ? `${curated.requiredStreet}${curated.name}` : curated.name;
+    const pois = await this.queryPlaces(keyword);
+    const matches = pois.filter((poi) => aliases.includes(poi.name));
+    const landmarks = matches.length || curated.requiredStreet
+      ? matches
+      : pois.filter((poi) => poi.name.includes(curated.name) && classifyPlace(poi) === curated.category);
+    for (const poi of landmarks.slice(0, 3)) {
+      const place = this.convertPoi(poi, curated.category);
+      if (!place || !districtMatches(place)) continue;
+      const resolved = await this.describePlace(place);
+      if (!districtMatches(resolved)) continue;
+      if (!curated.requiredStreet || curated.requiredStreet === resolved.streetName) return resolved;
+    }
+    return null;
   }
 
   async locateStreet(district: District, street: Street): Promise<AtlasPlace | null> {

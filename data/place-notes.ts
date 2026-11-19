@@ -9,7 +9,8 @@ const profiles = [
     source: { name: "深圳前海管理局", url: "https://qh.sz.gov.cn/sygnan/qhzx/zthd_1/qhgnz/shzqh/xf/sqjd/content/post_12073733.html" },
   },
   {
-    names: ["麻布新村", "麻布新村(西乡街道)"],
+    names: ["麻布新村", "麻布邨", "麻布新村(西乡街道)"],
+    requiredStreet: "西乡街道",
     category: "城中村",
     address: "深圳市宝安区西乡街道麻布新村",
     summary: "坪洲地铁站B口附近的居民村落，位于新湖路一带。",
@@ -45,10 +46,11 @@ const categoryIntros: Record<PlaceCategory, string> = {
   "其他地点": "高德地图名录中的地点。",
 };
 
-export function knownPlaceProfile(name: string, districtName: string, category: string) {
+export function knownPlaceProfile(name: string, districtName: string, category: string, streetName?: string) {
   if (!["宝安", "宝安区"].includes(districtName)) return undefined;
   const key = name.normalize("NFKC");
-  return profiles.find((profile) => profile.category === category && profile.names.includes(key));
+  return profiles.find((profile) => profile.category === category && profile.names.includes(key) &&
+    (!profile.requiredStreet || profile.requiredStreet === streetName));
 }
 
 export function placeIntro(category: string) {
