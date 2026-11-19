@@ -20,12 +20,20 @@ declare namespace AMap {
     mapStyle: string;
     features: string[];
     showLabel: boolean;
+    showBuildingBlock?: boolean;
+    showIndoorMap?: boolean;
     resizeEnable: boolean;
   }
 
   class Map {
     constructor(container: HTMLElement, options: MapOptions);
     on(event: string, handler: (event: MapEvent) => void): void;
+    off(event: string, handler: (event: MapEvent) => void): void;
+    getLayers(): TileLayer[];
+    setLayers(layers: TileLayer[]): void;
+    getCenter(): LngLat;
+    getBounds(): { getNorthEast(): LngLat; contains(point: LngLatTuple): boolean };
+    lngLatToContainer(point: LngLatTuple): { getX(): number; getY(): number };
     setZoomAndCenter(zoom: number, center: LngLatTuple, immediately?: boolean, duration?: number): void;
     setCenter(center: LngLatTuple, immediately?: boolean, duration?: number): void;
     setZoom(zoom: number, immediately?: boolean, duration?: number): void;
@@ -62,9 +70,11 @@ declare namespace AMap {
     id: string;
     name: string;
     type: string;
+    typecode?: string;
     address: string;
     location: LngLat;
     adname?: string;
+    cityname?: string;
     tel?: string;
   }
 
@@ -74,9 +84,16 @@ declare namespace AMap {
   }
 
   class PlaceSearch {
-    constructor(options: { city: string; citylimit: boolean; pageSize: number; extensions?: string });
+    constructor(options: { city: string; citylimit: boolean; pageSize: number; extensions?: string; type?: string });
     search(keyword: string, callback: (status: string, result: PlaceSearchResult) => void): void;
     searchNearBy(keyword: string, center: LngLatTuple, radius: number, callback: (status: string, result: PlaceSearchResult) => void): void;
+  }
+
+  class Geocoder {
+    constructor(options: { city: string });
+    getAddress(location: LngLatTuple, callback: (status: string, result: {
+      regeocode?: { addressComponent?: { district?: string; township?: string } };
+    }) => void): void;
   }
 
   function plugin(name: "AMap.PlaceSearch", callback: () => void): void;
@@ -113,6 +130,13 @@ declare namespace AMap {
     setOptions(options: Partial<PolygonOptions>): void;
     setMap(map: Map | null): void;
   }
+
+  class Buildings {
+    constructor(options: { zooms: [number, number]; roofColor: string; wallColor: string; heightFactor: number; opacity?: number });
+    setMap(map: Map | null): void;
+  }
+
+  class TileLayer {}
 
   namespace TileLayer {
     class Satellite {

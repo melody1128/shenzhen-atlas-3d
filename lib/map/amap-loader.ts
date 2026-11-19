@@ -42,7 +42,7 @@ export function loadAMap(): Promise<typeof AMap> {
       script.dataset.shenzhenAmap = "true";
       script.async = true;
       script.charset = "utf-8";
-      script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(config.amapKey)}&callback=__shenzhenAtlasAMapLoaded&plugin=AMap.DistrictSearch,AMap.PlaceSearch,AMap.Scale`;
+      script.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(config.amapKey)}&callback=__shenzhenAtlasAMapLoaded&plugin=AMap.DistrictSearch,AMap.PlaceSearch,AMap.Geocoder,AMap.Scale`;
       script.onerror = () => {
         clearTimeout(timer);
         loaderPromise = null;

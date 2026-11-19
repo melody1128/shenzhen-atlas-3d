@@ -2,8 +2,6 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { AlertTriangle, KeyRound, LoaderCircle } from "lucide-react";
-import { LAYER_DEFINITIONS } from "@/data/layers";
-import { DISTRICT_BY_ID } from "@/data/districts";
 import { ShenzhenMapService, type BaseMapMode } from "@/lib/map/amap-service";
 import type { AtlasPlace, CuratedPlace, District, LayerId, NearbyPlace, PlaceCategory, Street } from "@/types/atlas";
 
@@ -12,6 +10,8 @@ export interface MapHandle {
   focusStreet: (district: District, street: Street) => Promise<AtlasPlace | null>;
   focusCurated: (curated: CuratedPlace) => Promise<AtlasPlace | null>;
   focusPlace: (place: AtlasPlace) => void;
+  describePlace: (place: AtlasPlace) => Promise<AtlasPlace>;
+  locateMetroStation: (station: string) => Promise<AtlasPlace | null>;
   searchGlobal: (keyword: string) => Promise<AtlasPlace[]>;
   searchNearby: (origin: AtlasPlace, keyword: string, category: PlaceCategory) => Promise<NearbyPlace[]>;
   resetNorth: () => void;
@@ -28,7 +28,7 @@ interface AMapViewProps {
   onPlaceSelect: (place: AtlasPlace) => void;
   onReadyChange: (ready: boolean) => void;
   onError: (message: string) => void;
-  onLayerCount: (layerId: LayerId, count: number) => void;
+  onLayerCounts: (counts: Partial<Record<LayerId, number>>) => void;
 }
 
 function friendlyMapError(error: unknown): string {
@@ -43,12 +43,11 @@ export const AMapView = forwardRef<MapHandle, AMapViewProps>(function AMapView(p
   const serviceRef = useRef<ShenzhenMapService | null>(null);
   const callbacksRef = useRef(props);
   callbacksRef.current = props;
-  const { layers: activeLayers, selectedDistrictId: activeDistrictId } = props;
+  const { layers: activeLayers } = props;
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [boundarySummary, setBoundarySummary] = useState<string>("");
-  const [zoom, setZoom] = useState(10.2);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -60,7 +59,6 @@ export const AMapView = forwardRef<MapHandle, AMapViewProps>(function AMapView(p
           return;
         }
         serviceRef.current = service;
-        service.onZoomChange(() => setZoom(service.getZoom()));
         setReady(true);
         setLoading(false);
         callbacksRef.current.onReadyChange(true);
@@ -88,34 +86,35 @@ export const AMapView = forwardRef<MapHandle, AMapViewProps>(function AMapView(p
   useEffect(() => { serviceRef.current?.setBaseMode(props.mapMode, props.theme); }, [props.mapMode, props.theme, ready]);
   useEffect(() => { serviceRef.current?.setViewMode(props.viewMode); }, [props.viewMode, ready]);
   useEffect(() => { serviceRef.current?.setBuildingsVisible(props.layers.buildings); }, [props.layers.buildings, ready]);
-  useEffect(() => { serviceRef.current?.setDistrictBoundariesVisible(props.layers.districts); }, [props.layers.districts, ready, boundarySummary]);
   useEffect(() => { serviceRef.current?.highlightDistrict(props.selectedDistrictId); }, [props.selectedDistrictId, ready, boundarySummary]);
 
   useEffect(() => {
     const service = serviceRef.current;
     if (!service || !ready) return;
-    const districtName = activeDistrictId ? DISTRICT_BY_ID.get(activeDistrictId)?.name : undefined;
-    for (const definition of LAYER_DEFINITIONS) {
-      if (!definition.keyword || !definition.category) continue;
-      if (!activeLayers[definition.id]) {
-        service.clearLayer(definition.id);
-        callbacksRef.current.onLayerCount(definition.id, 0);
-        continue;
-      }
-      if (zoom < definition.minZoom) {
-        service.clearLayer(definition.id);
-        callbacksRef.current.onLayerCount(definition.id, -1);
-        continue;
-      }
-      service.syncPlaceLayer(definition.id, definition.keyword, definition.category, districtName)
-        .then((count) => callbacksRef.current.onLayerCount(definition.id, count))
-        .catch((reason: unknown) => {
-          callbacksRef.current.onLayerCount(definition.id, 0);
-          callbacksRef.current.onError(reason instanceof Error ? reason.message : `${definition.label}图层加载失败`);
-        });
-    }
-    // 图层定义是静态常量；缩放与选区变化会按视口层级重新检索。
-  }, [activeLayers, activeDistrictId, ready, zoom]);
+    let timer: number | undefined;
+    let live = true;
+    const refresh = () => {
+      service.setDistrictBoundariesVisible(activeLayers.districts && service.getZoom() < 14);
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        void service.syncViewportPlaces(activeLayers)
+          .then((counts) => { if (live && counts) callbacksRef.current.onLayerCounts(counts); })
+          .catch(() => { if (live) callbacksRef.current.onLayerCounts({}); });
+      }, 300);
+    };
+    refresh();
+    const unsubscribe = service.onViewportChange(refresh);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [activeLayers, ready]);
+
+  useEffect(() => {
+    const service = serviceRef.current;
+    if (service) service.setDistrictBoundariesVisible(activeLayers.districts && service.getZoom() < 14);
+  }, [activeLayers.districts, boundarySummary, ready]);
 
   useImperativeHandle(ref, () => ({
     focusDistrict: (districtId) => serviceRef.current?.flyToDistrict(districtId) ?? false,
@@ -130,6 +129,8 @@ export const AMapView = forwardRef<MapHandle, AMapViewProps>(function AMapView(p
       return place;
     },
     focusPlace: (place) => serviceRef.current?.flyToPlace(place),
+    describePlace: (place) => serviceRef.current?.describePlace(place) ?? Promise.resolve(place),
+    locateMetroStation: (station) => serviceRef.current?.locateMetroStation(station) ?? Promise.resolve(null),
     searchGlobal: (keyword) => serviceRef.current?.searchGlobal(keyword) ?? Promise.reject(new Error("真实地图尚未连接")),
     searchNearby: (origin, keyword, category) => serviceRef.current?.searchNearby(origin, keyword, category) ?? Promise.reject(new Error("真实地图尚未连接")),
     resetNorth: () => serviceRef.current?.resetNorth(),

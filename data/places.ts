@@ -5,6 +5,12 @@ import type { CuratedPlace } from "@/types/atlas";
  * 用户点选后由地图服务实时解析位置，结果不代表完整 POI 目录。
  */
 export const CURATED_PLACES: CuratedPlace[] = [
+  { id: "mall-baoan-daqianli", name: "宝安大仟里", aliases: ["大仟里", "大千里", "坪洲大仟里"], category: "购物中心", districtId: "baoan", areaName: "西乡" },
+  { id: "village-mabu", name: "麻布新村", aliases: ["麻布村"], category: "城中村", districtId: "baoan", areaName: "西乡" },
+  { id: "village-gaoshuwei", name: "高树围新村", aliases: ["高树围村", "共乐高树围新村"], category: "城中村", districtId: "baoan", areaName: "西乡" },
+  { id: "estate-jingang", name: "金港华庭", aliases: [], category: "住宅小区", districtId: "baoan", areaName: "西乡" },
+  { id: "estate-xiangtiwan", name: "香缇湾花园", aliases: ["中熙香缇湾", "香缇湾"], category: "住宅小区", districtId: "baoan", areaName: "西乡" },
+  { id: "estate-zhaoshangguoling", name: "招商果岭", aliases: ["招商果岭花园"], category: "住宅小区", districtId: "baoan", areaName: "西乡" },
   { id: "mall-yifangcheng", name: "壹方城", aliases: ["前海壹方城"], category: "购物中心", districtId: "baoan", areaName: "宝安中心" },
   { id: "mall-haiya", name: "海雅缤纷城", aliases: [], category: "购物中心", districtId: "baoan", areaName: "新安" },
   { id: "mall-mixc-world", name: "万象天地", aliases: ["深圳万象天地"], category: "购物中心", districtId: "nanshan", areaName: "科技园" },

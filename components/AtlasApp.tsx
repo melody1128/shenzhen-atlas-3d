@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Bookmark, ChevronDown, Compass, Layers3, Map as MapIcon, Menu, Moon, Navigation2, QrCode, RotateCcw, Search, Settings2, Sun, X } from "lucide-react";
+import { Box, Bookmark, ChevronDown, Compass, Layers3, Map as MapIcon, Menu, Moon, Navigation2, QrCode, RotateCcw, Search, Settings2, Sun, TrainFront, X } from "lucide-react";
 import { AMapView, type MapHandle } from "@/components/map/AMapView";
 import { AreaNavigator } from "@/components/AreaNavigator";
 import { DiscoverPanel } from "@/components/DiscoverPanel";
 import { LayerPanel } from "@/components/LayerPanel";
+import { MetroDialog } from "@/components/MetroDialog";
 import { AtlasLibrary } from "@/components/panels/AtlasLibrary";
 import { DetailPanel } from "@/components/panels/DetailPanel";
 import { SearchBox } from "@/components/SearchBox";
@@ -44,6 +45,8 @@ export default function AtlasApp() {
   const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [metroOpen, setMetroOpen] = useState(false);
+  const metroRequest = useRef(0);
   const [sheetExpanded, setSheetExpanded] = useState(false);
   const [toast, setToast] = useState("");
   const { markViewed, setHydrated } = useAtlasStore();
@@ -179,13 +182,33 @@ export default function AtlasApp() {
   };
 
   const selectPlace = (place: AtlasPlace) => {
-    const district = DISTRICTS.find((item) => place.districtName.includes(item.name.replace(/区|新区/g, "")));
-    if (district) setSelectedDistrictId(district.id);
+    const district = DISTRICTS.find((item) => item.name === place.districtName);
+    setSelectedDistrictId(district?.id ?? null);
     setSelection({ kind: "place", place });
     setSheetExpanded(false);
     setMobilePanel(null);
     setMobileLeftOpen(false);
     mapRef.current?.focusPlace(place);
+    void mapRef.current?.describePlace(place).then((resolved) => {
+      if (resolved === place) return;
+      setSelection((current) => current?.kind === "place" && current.place.id === place.id
+        ? { kind: "place", place: resolved }
+        : current);
+    }).catch(() => undefined);
+  };
+
+  const closeMetro = () => {
+    metroRequest.current += 1;
+    setMetroOpen(false);
+  };
+
+  const selectMetroStation = async (station: string) => {
+    const request = ++metroRequest.current;
+    const place = await mapRef.current?.locateMetroStation(station);
+    if (!place || metroRequest.current !== request) return false;
+    closeMetro();
+    selectPlace(place);
+    return true;
   };
 
   const selectSearchEntry = (entry: SearchEntry) => {
@@ -217,7 +240,7 @@ export default function AtlasApp() {
   const renderPanel = (panel: LeftTab | "discover" | "library") => {
     if (panel === "areas") return <AreaNavigator selectedDistrictId={selectedDistrictId} selectedStreetId={selectedStreetId} onDistrictSelect={selectDistrict} onStreetSelect={selectStreet} />;
     if (panel === "layers") return <LayerPanel layers={layers} counts={layerCounts} mapReady={mapReady} onToggle={(id) => setLayers((previous) => ({ ...previous, [id]: !previous[id] }))} />;
-    if (panel === "discover") return <DiscoverPanel onSelect={selectCurated} onSelectDistrict={(id) => { const district = DISTRICT_BY_ID.get(id); if (district) selectDistrict(district); }} />;
+    if (panel === "discover") return <DiscoverPanel onSelect={selectCurated} />;
     return <AtlasLibrary onOpenRecord={openRecord} />;
   };
 
@@ -257,7 +280,7 @@ export default function AtlasApp() {
             onPlaceSelect={selectPlace}
             onReadyChange={setMapReady}
             onError={setToast}
-            onLayerCount={(id, count) => setLayerCounts((previous) => ({ ...previous, [id]: count }))}
+            onLayerCounts={setLayerCounts}
           />
           <div className="map-mode-control floating-control">
             {(["standard", "satellite", "night"] as BaseMapMode[]).map((mode) => <button type="button" key={mode} className={mapMode === mode ? "active" : ""} onClick={() => setMapMode(mode)}>{mode === "standard" ? "标准" : mode === "satellite" ? "卫星" : "夜间"}</button>)}
@@ -265,7 +288,8 @@ export default function AtlasApp() {
           <div className="map-tools floating-control">
             <button type="button" onClick={() => mapRef.current?.resetNorth()} aria-label="回正北"><Navigation2 size={18} /><span>回正北</span></button>
             <button type="button" onClick={() => { setSelectedDistrictId(null); setSelection(null); mapRef.current?.resetView(); }} aria-label="恢复深圳全市视角"><RotateCcw size={18} /><span>全市视角</span></button>
-            <button type="button" onClick={() => setSettingsOpen(true)} aria-label="显示手机二维码"><QrCode size={18} /><span>手机访问</span></button>
+            <button className="desktop-map-tool" type="button" onClick={() => setSettingsOpen(true)} aria-label="显示手机二维码"><QrCode size={18} /><span>手机访问</span></button>
+            <button className="desktop-map-tool" type="button" onClick={() => setMetroOpen(true)} aria-label="打开地铁线路图"><TrainFront size={18} /><span>地铁</span></button>
           </div>
           <div className="mobile-map-caption"><span>{viewMode} · {mapMode === "standard" ? "标准" : mapMode === "satellite" ? "卫星" : "夜间"}</span><button type="button" onClick={() => setViewMode(viewMode === "3D" ? "2D" : "3D")}>{viewMode === "3D" ? "切换 2D" : "切换 3D"}</button></div>
         </section>
@@ -280,11 +304,13 @@ export default function AtlasApp() {
       <nav className="mobile-bottom-nav" aria-label="主要功能">
         <button type="button" className={!mobilePanel ? "active" : ""} onClick={() => { setMobilePanel(null); setMobileLeftOpen(false); setSelection(null); }}><MapIcon size={20} /><span>地图</span></button>
         <button type="button" className={mobilePanel === "areas" ? "active" : ""} onClick={() => { setMobilePanel("areas"); setMobileLeftOpen(false); }}><Search size={20} /><span>区域</span></button>
+        <button type="button" onClick={() => setMetroOpen(true)} aria-label="打开地铁线路图"><TrainFront size={20} /><span>地铁</span></button>
         <button type="button" className={mobilePanel === "discover" ? "active" : ""} onClick={() => { setMobilePanel("discover"); setMobileLeftOpen(false); }}><Compass size={20} /><span>发现</span></button>
         <button type="button" className={mobilePanel === "library" ? "active" : ""} onClick={() => { setMobilePanel("library"); setMobileLeftOpen(false); }}><Bookmark size={20} /><span>我的</span></button>
       </nav>
 
       {toast && <div className="toast" role="status">{toast}</div>}
+      {metroOpen && <MetroDialog onClose={closeMetro} onStation={selectMetroStation} />}
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} mapReady={mapReady} />
     </main>
   );

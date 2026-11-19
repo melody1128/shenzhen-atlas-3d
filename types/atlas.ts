@@ -32,6 +32,10 @@ export interface District {
 export type PlaceCategory =
   | "商圈"
   | "购物中心"
+  | "办公楼"
+  | "企业总部"
+  | "银行"
+  | "幼儿园"
   | "城中村"
   | "住宅小区"
   | "地铁站"
@@ -47,6 +51,9 @@ export type LayerId =
   | "districts"
   | "business"
   | "malls"
+  | "offices"
+  | "banks"
+  | "kindergartens"
   | "villages"
   | "residential"
   | "metro"
@@ -56,13 +63,12 @@ export type LayerId =
   | "schools"
   | "hospitals"
   | "parks"
-  | "prices"
   | "buildings";
 
 export interface LayerDefinition {
   id: LayerId;
   label: string;
-  keyword?: string;
+  poiTypes?: string;
   category?: PlaceCategory;
   description: string;
   minZoom: number;

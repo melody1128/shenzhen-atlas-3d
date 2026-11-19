@@ -5,7 +5,9 @@ import { Bookmark, Check, ChevronRight, CircleDollarSign, ExternalLink, Flag, Lo
 import { CURATED_PLACE_BY_ID } from "@/data/places";
 import { DISTRICT_BY_ID, STREET_BY_ID } from "@/data/districts";
 import { COMMUNITY_SOURCE, communitiesOfStreet } from "@/data/communities";
-import { formatPrice, latestPriceForTarget } from "@/data/prices";
+import { latestEstateSale } from "@/data/estate-sales";
+import { knownPlaceProfile, placeIntro } from "@/data/place-notes";
+import { PLACE_BADGES } from "@/lib/map/places";
 import { formatDistance } from "@/lib/geo/distance";
 import { useAtlasStore, type ExploreTarget } from "@/lib/store/atlas-store";
 import type { AtlasPlace, CuratedPlace, District, NearbyPlace, PlaceCategory, Street } from "@/types/atlas";
@@ -77,7 +79,18 @@ export function DetailPanel({ selection, expanded, onToggleExpanded, onClose, on
   if (!details) return null;
   const target: ExploreTarget = { id: details.id, name: details.name, category: details.category, districtName: details.districtName, place: details.place };
   const record = records[details.id];
-  const price = latestPriceForTarget(details.id);
+  const isEstate = details.category === "住宅小区";
+  const sale = isEstate ? latestEstateSale(details.name, details.districtName) : undefined;
+  const profile = knownPlaceProfile(details.name, details.districtName, details.category);
+  const mappedAddress = details.place?.address;
+  const location = ["街道", "社区"].includes(details.category)
+    ? `深圳市${details.districtName}${details.street?.name ?? ""}${details.kind === "community" ? details.name : ""}`
+    : mappedAddress
+      ? mappedAddress.startsWith("深圳") ? mappedAddress : `深圳市${mappedAddress.includes(details.districtName) ? "" : details.districtName}${mappedAddress}`
+      : `深圳市${details.districtName}${details.curated?.areaName === "西乡" ? "西乡街道" : details.curated?.areaName ?? ""}${details.kind === "district" ? "" : details.name}`;
+  const address = details.category === "城中村" ? profile?.address ?? location : mappedAddress ? location : profile?.address ?? location;
+  const intro = profile?.summary ?? placeIntro(details.category);
+  const badge = PLACE_BADGES[details.category as PlaceCategory];
 
   const loadNearby = async () => {
     if (!details.place) return;
@@ -114,15 +127,52 @@ export function DetailPanel({ selection, expanded, onToggleExpanded, onClose, on
     >
       <button className="sheet-drag-handle" type="button" onClick={onToggleExpanded} aria-label={expanded ? "收起详情" : "展开详情"}><span /></button>
       <div className="detail-topline">
-        <span className="detail-category">{details.category}</span>
+        <span className="detail-category">{badge && <span className="atlas-marker-glyph" aria-hidden="true" style={{ background: badge.color }}>{badge.glyph}</span>}{details.category}</span>
         <button className="icon-button detail-close" type="button" onClick={onClose} aria-label="关闭详情"><X size={18} /></button>
       </div>
       <div className="detail-scroll">
         <header className="detail-header">
           <span className="eyebrow">SHENZHEN / {details.district?.id.toUpperCase() ?? "PLACE"}</span>
           <h1>{details.name}</h1>
-          <div className="breadcrumb"><span>深圳市</span><ChevronRight size={12} /><span>{details.districtName}</span>{details.category === "社区" && <><ChevronRight size={12} /><span>社区</span></>}</div>
+          <p className="place-address"><MapPin size={15} /><span>{address}</span></p>
         </header>
+
+        {details.loading && <div className="detail-loading"><LoaderCircle className="spin" size={18} /><span>正在通过真实地图核验位置与地址…</span></div>}
+        {details.error && <div className="data-warning">{details.error}</div>}
+
+        {details.category === "城中村" && (
+          <section className="detail-section price-section">
+            <div className="section-title-row"><h2>村内房价参考</h2><CircleDollarSign size={17} /></div>
+            {profile?.villagePrice ? (
+              <>
+                <strong className="price-value">约 {(profile.villagePrice.sqm / 10_000).toFixed(2)} 万元/㎡</strong>
+                <p>{profile.villagePrice.month} · 平台参考均价 · 成交口径未披露</p>
+                <a className="estate-price-source" href={profile.villagePrice.url} target="_blank" rel="noreferrer">58同城爱房 · 房价走势 <ExternalLink size={12} /></a>
+              </>
+            ) : <p>暂无可核实的村内房价参考。</p>}
+          </section>
+        )}
+
+        {isEstate && (
+          <section className="detail-section price-section">
+            <div className="section-title-row"><h2>小区房价参考</h2><CircleDollarSign size={17} /></div>
+            {sale ? (
+              <>
+                <strong className="price-value">约 {sale.perSquareMetre.toFixed(2)} 万元/㎡</strong>
+                <p>最近一笔公开成交 {sale.total} 万元 · {sale.area} ㎡ · {sale.date}</p>
+                <a className="estate-price-source" href={sale.url} target="_blank" rel="noreferrer">{sale.source} · 单套成交记录 <ExternalLink size={12} /></a>
+              </>
+            ) : <p>暂未收录这个小区的可核实成交记录。</p>}
+          </section>
+        )}
+
+        {intro && !isEstate && (
+          <section className="detail-section place-intro">
+            <h2>简介</h2>
+            <p>{intro}</p>
+            {profile && <a href={profile.source.url} target="_blank" rel="noreferrer">{profile.source.name} <ExternalLink size={12} /></a>}
+          </section>
+        )}
 
         <div className="exploration-actions">
           <button type="button" className={record?.status === "已了解" ? "active" : ""} onClick={() => toggleKnown(target)}><Check size={15} />{record?.status === "已了解" ? "已了解" : "标记已了解"}</button>
@@ -130,10 +180,7 @@ export function DetailPanel({ selection, expanded, onToggleExpanded, onClose, on
           <button type="button" className={record?.wishlist ? "active" : ""} onClick={() => toggleWishlist(target)}><Flag size={15} />{record?.wishlist ? "已加入" : "想去"}</button>
         </div>
 
-        {details.loading && <div className="detail-loading"><LoaderCircle className="spin" size={18} /><span>正在通过真实地图核验位置与地址…</span></div>}
-        {details.error && <div className="data-warning">{details.error}</div>}
-
-        <section className="detail-section">
+        {(details.kind === "district" || details.kind === "street" || details.kind === "community" || details.place?.phone) && <section className="detail-section">
           <h2>区域与位置</h2>
           {details.kind === "district" && details.district && (
             <div className="fact-grid">
@@ -145,20 +192,11 @@ export function DetailPanel({ selection, expanded, onToggleExpanded, onClose, on
           {details.kind === "community" && <div className="boundary-status"><MapPin size={16} /><span><strong>社区边界数据暂缺</strong><small>定位为地图检索的社区工作站/居委会位置，社区范围不绘制示意边界。</small></span></div>}
           {details.place && (
             <dl className="place-facts">
-              <div><dt>地图地址</dt><dd>{details.place.address || "地图服务未返回详细地址"}</dd></div>
-              <div><dt>坐标</dt><dd>{details.place.location.lng.toFixed(5)}, {details.place.location.lat.toFixed(5)} <small>GCJ-02</small></dd></div>
               {details.place.phone && <div><dt>联系电话</dt><dd>{details.place.phone}</dd></div>}
-              {details.place.rawType && <div><dt>地图分类</dt><dd>{details.place.rawType}</dd></div>}
             </dl>
           )}
           {!details.place && !details.loading && details.kind !== "district" && <p className="muted-copy">配置并连接真实地图后，可查询该地名的位置与地址。</p>}
-        </section>
-
-        <section className="detail-section price-section">
-          <div className="section-title-row"><h2>二手普通住宅成交均价</h2><CircleDollarSign size={17} /></div>
-          <strong className="price-value">{formatPrice(price?.price)}</strong>
-          {price ? <p>统计至 {price.periodEnd} · {price.sampleSize ? `${price.sampleSize} 套样本 · ` : ""}{price.source.name}</p> : <p>未混入挂牌价、官方参考价、公寓或别墅数据。</p>}
-        </section>
+        </section>}
 
         {details.street && (() => {
           const communityList = communitiesOfStreet(details.street.name) ?? [];
